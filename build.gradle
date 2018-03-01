@@ -1,12 +1,53 @@
-
-apply plugin: 'java'
+apply plugin: 'application'
 
 sourceCompatibility = 1.8
 
+mainClassName = "depsolver.Main"
+
 repositories {
+    ivy {
+        artifactPattern "https://www.sosy-lab.org/ivy/[organisation]/[module]/[artifact]-[revision](-[classifier]).[ext]"
+        ivyPattern "https://www.sosy-lab.org/ivy/[organisation]/[module]/ivy-[revision].xml"
+    }
     mavenCentral()
 }
 
 dependencies {
-    testCompile group: 'junit', name: 'junit', version: '4.12'
+    implementation (
+            [group: "org.sosy_lab", name: "javasmt", version: "1.0.1-219-g535f988", configuration: "runtime-z3"],
+            [group: "org.sosy_lab", name: "javasmt-solver-z3", version: "z3-4.6.0-9-g36204fa", configuration: "solver-z3"],
+            [group: "com.alibaba", name: "fastjson", version: "1.2.46"],
+    )
+
 }
+
+jar {
+    manifest {
+        attributes "Implementation-Title": "Dependency Solver",
+                "Main-Class": "$mainClassName",
+                "Class-Path": configurations.runtimeClasspath.collect {
+                    f ->
+                        if (f.getPath().endsWith(".jar")) {
+                            f.getPath()
+                        } else {
+                            ""
+                        }
+                }.join(" ")
+    }
+}
+
+// Allow java to find Z3 binaries
+tasks.withType(JavaExec) {
+    systemProperty "java.library.path", "build/libs"
+}
+
+// Copy Z3 binaries to build/libs
+task copyBinaries (type: Copy) {
+    into "build/libs"
+    from configurations.runtimeClasspath
+    exclude { f -> !f.file.name.contains("libz3") && "*.jar" }
+    rename '(libz3java).*', '$1.so'
+    rename '(libz3)-.*', '$1.so'
+}
+
+build.dependsOn(copyBinaries)
