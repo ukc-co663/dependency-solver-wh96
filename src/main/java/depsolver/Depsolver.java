@@ -57,7 +57,7 @@ public class Depsolver {
         // add constraint that variables are either 0 or 1
         for (IntegerFormula v : variables.values()) {
             BooleanFormula constraint = bmgr.or(imgr.equal(v, ZERO),
-                                                imgr.equal(v, ONE));
+                    imgr.equal(v, ONE));
             prover.addConstraint(constraint);
         }
 
@@ -107,7 +107,7 @@ public class Depsolver {
             }
 
             // install the virtual package
-            BooleanFormula installVirt = imgr.equal(variables.get("_VIRTUAL_=1.0"), ONE);
+            BooleanFormula installVirt = imgr.greaterOrEquals(sizedVariables.get("_VIRTUAL_=1"), ONE);
             prover.addConstraint(installVirt);
 
             // optimize

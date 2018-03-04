@@ -49,7 +49,7 @@ public class Parser {
             // add virtual package to repo
             Package virtual = new Package();
             virtual.setName("_VIRTUAL_");
-            virtual.setVersion("1.0");
+            virtual.setVersion("1");
             virtual.setSize(1);
             for (String constraint : constraints) {
                 if (constraint.startsWith("+")) {
