@@ -50,7 +50,7 @@ public class Parser {
             Package virtual = new Package();
             virtual.setName("_VIRTUAL_");
             virtual.setVersion("1.0");
-            virtual.setSize(0);
+            virtual.setSize(1);
             for (String constraint : constraints) {
                 if (constraint.startsWith("+")) {
                     // add to dependencies of _VIRTUAL_
