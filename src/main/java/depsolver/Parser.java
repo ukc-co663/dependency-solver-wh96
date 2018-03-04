@@ -55,12 +55,9 @@ public class Parser {
                 if (constraint.startsWith("+")) {
                     // add to dependencies of _VIRTUAL_
                     List<List<String>> current = virtual.getDepends();
-                    if (current.size() > 0) {
-                        current.get(0).add(constraint.substring(1));
-                    } else {
-                        current.add(0, new ArrayList<>());
-                        current.get(0).add(constraint.substring(1));
-                    }
+                    List<String> newDependency = new ArrayList<>();
+                    newDependency.add(constraint.substring(1));
+                    current.add(newDependency);
                 } else {
                     // add to conflicts of _VIRTUAL_
                     List<String> current = virtual.getConflicts();
