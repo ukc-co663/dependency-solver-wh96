@@ -3,92 +3,115 @@ package depsolver;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.java_smt.SolverContextFactory;
 import org.sosy_lab.java_smt.api.*;
+import org.sosy_lab.java_smt.api.NumeralFormula.IntegerFormula;
 
-public class Main {
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static org.sosy_lab.java_smt.SolverContextFactory.Solvers;
+
+public class Depsolver {
+
+
     public static void main(String[] args) {
-//        TypeReference<List<Package>> repoType = new TypeReference<List<Package>>() {
-//        };
-//        List<Package> repo = JSON.parseObject(readFile(args[0]), repoType);
-//        TypeReference<List<String>> strListType = new TypeReference<List<String>>() {
-//        };
-//        List<String> initial = JSON.parseObject(readFile(args[1]), strListType);
-//        List<String> constraints = JSON.parseObject(readFile(args[2]), strListType);
-//
-//        // CHANGE CODE BELOW:
-//        // using repo, initial and constraints, compute a solution and print the answer
-//        for (Package p : repo) {
-//            System.out.printf("package %s version %s\n", p.getName(), p.getVersion());
-//            if (p.getDepends() != null) {
-//                for (List<String> clause : p.getDepends()) {
-//                    System.out.printf("  dep:");
-//                    for (String q : clause) {
-//                        System.out.printf(" %s", q);
-//                    }
-//                    System.out.printf("\n");
-//                }
-//            }
-//            if (p.getConflicts() != null) {
-//                for (String clause : p.getConflicts()) {
-//                    System.out.printf("  con: %s%n", clause);
-//                }
-//            }
-//            System.out.println();
-//        }
+        try (SolverContext solverContext = SolverContextFactory.createSolverContext(Solvers.Z3)) {
 
-        solve();
-    }
+            Problem problem = Parser.parse(args[0], args[1], args[2]); // repo, initial, constraints
+            Solution solution = Depsolver.solve(solverContext, problem);
 
-//    static String readFile(String filename) throws IOException {
-//        BufferedReader br = new BufferedReader(new FileReader(filename));
-//        StringBuilder sb = new StringBuilder();
-//        br.lines().forEach(line -> sb.append(line));
-//        return sb.toString();
-//    }
+            // write out JSON of the solution
+            // System.out.println(JSON.toJSON(solution));
 
-    private static void solve() {
-        SolverContext context = null;
-        try {
-             context = SolverContextFactory.createSolverContext(SolverContextFactory.Solvers.Z3);
-        } catch (InvalidConfigurationException e) {
+        } catch (InvalidConfigurationException | InterruptedException | SolverException e) {
             e.printStackTrace();
         }
-        assert context != null;
-        FormulaManager fmgr = context.getFormulaManager();
+    }
 
+    private static Solution solve(SolverContext solverContext, Problem problem) throws InterruptedException, SolverException {
+
+        OptimizationProverEnvironment prover = solverContext.newOptimizationProverEnvironment();
+
+        // Pseudo-Boolean
+        FormulaManager fmgr = solverContext.getFormulaManager();
         BooleanFormulaManager bmgr = fmgr.getBooleanFormulaManager();
+        IntegerFormulaManager imgr = fmgr.getIntegerFormulaManager();
 
-        // Declare variables
-        BooleanFormula p = bmgr.makeVariable("p");
-        BooleanFormula d1 = bmgr.makeVariable("d1");
-        BooleanFormula d2 = bmgr.makeVariable("d2");
-        BooleanFormula d3 = bmgr.makeVariable("d3");
-        BooleanFormula c = bmgr.makeVariable("c1");
+        // Constants
+        final IntegerFormula ZERO = imgr.makeNumber(0);
+        final IntegerFormula ONE = imgr.makeNumber(1);
 
-        // Construct constraints
-        BooleanFormula constr1 = bmgr.or(bmgr.not(p), d1, d2);
-        BooleanFormula constr2 = bmgr.or(bmgr.not(p), d3);
-        BooleanFormula constr3 = bmgr.or(bmgr.not(p), bmgr.not(c));
 
-        // Test for satisfiability
-        try (ProverEnvironment prover = context.newProverEnvironment(SolverContext.ProverOptions.GENERATE_MODELS)) {
-            // install p
-            prover.addConstraint(p);
+        Map<String, Package> repo = problem.getRepo();
+        Set<Package> initial = problem.getInitial();
 
-            // respect dependencies
-            prover.addConstraint(constr1);
-            prover.addConstraint(constr2);
-            prover.addConstraint(constr3);
 
-            boolean isUnsat = prover.isUnsat();
-
-            if (!isUnsat) {
-                Model model = prover.getModel();
-                System.out.print(model);
-            }
-        } catch (InterruptedException | SolverException e) {
-            e.printStackTrace();
+        // for each package in repo, create a variable
+        Map<String, IntegerFormula> variables = new HashMap<>();
+        for (String s : repo.keySet()) {
+            variables.put(s, imgr.makeVariable(s));
         }
+
+        // add constraint that variables are either 0 or 1
+        for (IntegerFormula v : variables.values()) {
+            BooleanFormula constraint = bmgr.or(imgr.equal(v, ZERO),
+                                                imgr.equal(v, ONE));
+            prover.addConstraint(constraint);
+        }
+
+        // add sizes to variables
+        Map<String, IntegerFormula> sizedVariables = new HashMap<>();
+        for (String s : repo.keySet()) {
+            IntegerFormula v = variables.get(s);
+            IntegerFormula c = imgr.makeNumber(repo.get(s).getSize());
+            IntegerFormula cTimesV = imgr.multiply(c, v);
+            sizedVariables.put(s, cTimesV);
+        }
+
+        // assert dependencies and conflicts
+        for (String s : repo.keySet()) {
+
+            // dependencies
+            for (List<String> l : repo.get(s).getDepends()) {
+
+                // Construct the dependency formula : c0 * d0 + c1 * d1 + ... + cn * dn - p >= 0
+                IntegerFormula sum = imgr.sum(l.stream().map(sizedVariables::get).collect(Collectors.toList()));
+                IntegerFormula neg = imgr.negate(variables.get(s));
+                IntegerFormula total = imgr.add(sum, neg);
+                BooleanFormula ineq = imgr.greaterOrEquals(total, ZERO);
+
+                // Add the formula as a constraint to the proverEnvironment
+                prover.addConstraint(ineq);
+            }
+
+            // conflicts
+            for (String c : repo.get(s).getConflicts()) {
+
+                // Construct the conflict formula : c + p <= 1
+                IntegerFormula sum = imgr.add(variables.get(c), variables.get(s));
+                BooleanFormula ineq = imgr.lessOrEquals(sum, ONE);
+
+                // Add the formula as a constraint to the proverEnvironment
+                prover.addConstraint(ineq);
+
+            }
+
+            // install the virtual package
+            BooleanFormula installVirt = imgr.equal(variables.get("_VIRTUAL_=1.0"), ONE);
+            prover.addConstraint(installVirt);
+
+            // optimize
+            // prover.minimize()
+
+        }
+
+        // System.out.println(prover.isUnsat());
+
+        prover.isUnsat();
+        System.out.println(prover.getModel());
+
+        return new Solution();
     }
-
-
 }

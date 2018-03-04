@@ -1,13 +1,14 @@
 package depsolver;
 
+import java.util.ArrayList;
 import java.util.List;
 
 class Package {
     private String name;
     private String version;
     private Integer size;
-    private List<List<String>> depends;
-    private List<String> conflicts;
+    private List<List<String>> depends = new ArrayList<>();
+    private List<String> conflicts = new ArrayList<>();
 
     public String getName() {
         return name;
@@ -27,6 +28,10 @@ class Package {
 
     public List<String> getConflicts() {
         return conflicts;
+    }
+
+    public String getUUID() {
+        return name + "=" + version;
     }
 
     public void setName(String name) {
