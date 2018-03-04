@@ -169,3 +169,6 @@ fabric.properties
 
 
 # End of https://www.gitignore.io/api/emacs,java,jetbrains+all,gradle
+
+# Added manually
+!src/main/resources/*
