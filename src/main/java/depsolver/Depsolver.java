@@ -107,14 +107,18 @@ public class Depsolver {
 
             }
 
-            // install the virtual package
-            BooleanFormula installVirt = imgr.greaterOrEquals(sizedVariables.get("_VIRTUAL_=1"), ONE);
-            prover.addConstraint(installVirt);
-
-            // optimize
-            // prover.minimize()
-
         }
+
+        // install the virtual package
+        BooleanFormula installVirt = imgr.greaterOrEquals(variables.get("_VIRTUAL_=1"), ONE);
+        prover.addConstraint(installVirt);
+
+        // set the initial packages to be installed
+
+        // optimize
+        List<IntegerFormula> sumList = new ArrayList<>(sizedVariables.values());
+        IntegerFormula sum = imgr.sum(sumList);
+        int handle = prover.minimize(sum);
 
         // System.out.println(prover.isUnsat());
 
