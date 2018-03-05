@@ -49,9 +49,7 @@ public class Depsolver {
         final IntegerFormula ZERO = imgr.makeNumber(0);
         final IntegerFormula ONE = imgr.makeNumber(1);
 
-
         Map<String, Package> repo = problem.getRepo();
-        Set<Package> initial = problem.getInitial();
 
 
         // for each package in repo, create a variable
@@ -74,6 +72,15 @@ public class Depsolver {
             IntegerFormula c = imgr.makeNumber(repo.get(s).getSize());
             IntegerFormula cTimesV = imgr.multiply(c, v);
             sizedVariables.put(s, cTimesV);
+        }
+
+        // update the cost of initially installed packages
+        Set<Package> initials = problem.getInitial();
+        for (Package p : initials) {
+            IntegerFormula oldValue = variables.get(p.getUUID());
+            IntegerFormula uninstallCost = imgr.makeNumber(-1000000);
+            IntegerFormula newValue = imgr.multiply(uninstallCost, oldValue);
+            sizedVariables.put(p.getUUID(), newValue);
         }
 
         // assert dependencies and conflicts
@@ -116,7 +123,7 @@ public class Depsolver {
         BooleanFormula installVirt = imgr.greaterOrEquals(variables.get("_VIRTUAL_=1"), ONE);
         prover.addConstraint(installVirt);
 
-        // set the initial packages to be installed
+
 
         // optimize
         List<IntegerFormula> sumList = new ArrayList<>(sizedVariables.values());
