@@ -17,8 +17,11 @@ import static org.sosy_lab.java_smt.SolverContextFactory.Solvers;
 
 public class Depsolver {
 
+    private static long start;
+    private static long z3Start;
 
     public static void main(String[] args) {
+        start = System.currentTimeMillis();
         try (SolverContext solverContext = SolverContextFactory.createSolverContext(Solvers.Z3)) {
 
             Problem problem = Parser.parse(args[0], args[1], args[2]); // repo, initial, constraints
@@ -34,7 +37,8 @@ public class Depsolver {
 
     private static List<String> solve(SolverContext solverContext, Problem problem) throws InterruptedException,
             SolverException {
-
+        z3Start = System.currentTimeMillis();
+        System.out.println("Submitted to Z3 after: " + ((z3Start - start) / 1000) + " seconds");
         OptimizationProverEnvironment prover = solverContext.newOptimizationProverEnvironment();
 
         // Pseudo-Boolean
@@ -120,10 +124,16 @@ public class Depsolver {
         IntegerFormula sum = imgr.sum(sumList);
         int handle = prover.minimize(sum);
 
-        // System.out.println(prover.isUnsat());
+        // process results
+        if (!prover.isUnsat()) {
+            System.out.println("Sat");
+//            System.out.println("Model: " + model);
+            System.out.println(prover.getModelAssignments());
 
-        prover.isUnsat();
-        System.out.println(prover.getModel());
+        } else {
+            System.out.println("Unsat");
+//            System.out.println(prover.getUnsatCore());
+        }
 
         return new ArrayList<>();
     }
