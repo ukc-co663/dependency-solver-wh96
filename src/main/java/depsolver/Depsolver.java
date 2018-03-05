@@ -1,12 +1,16 @@
 package depsolver;
 
 import com.alibaba.fastjson.JSON;
+import com.google.common.collect.ImmutableList;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.java_smt.SolverContextFactory;
 import org.sosy_lab.java_smt.api.*;
 import org.sosy_lab.java_smt.api.NumeralFormula.IntegerFormula;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.sosy_lab.java_smt.SolverContextFactory.Solvers;
@@ -29,7 +33,7 @@ public class Depsolver {
             Problem problem = Parser.parse(args[0], args[1], args[2]); // repo, initial, constraints
             List<String> solution = Depsolver.solve(solverContext, problem);
             z3End = System.currentTimeMillis();
-            System.out.println("Z3 took " + (z3End - z3Start) + "ms");
+//            System.out.println("Z3 took " + (z3End - z3Start) + "ms");
 
             // write out JSON of the solution
             System.out.println(JSON.toJSON(solution));
@@ -42,8 +46,9 @@ public class Depsolver {
     private static List<String> solve(SolverContext solverContext, Problem problem) throws InterruptedException,
             SolverException {
         z3Start = System.currentTimeMillis();
-        System.out.println("Submitted to Z3 after: " + ((z3Start - start) / 1000) + " seconds");
+//        System.out.println("Submitted to Z3 after: " + (z3Start - start) + " ms");
         OptimizationProverEnvironment prover = solverContext.newOptimizationProverEnvironment();
+//        ProverEnvironment prover = solverContext.newProverEnvironment(SolverContext.ProverOptions.GENERATE_UNSAT_CORE);
 
         // Pseudo-Boolean
         FormulaManager fmgr = solverContext.getFormulaManager();
@@ -125,23 +130,37 @@ public class Depsolver {
         prover.addConstraint(installVirt);
 
 
-
         // optimize
         List<IntegerFormula> sumList = new ArrayList<>(sizedVariables.values());
         IntegerFormula sum = imgr.sum(sumList);
         int handle = prover.minimize(sum);
 
         // process results
+        List<String> result = new ArrayList<>();
         if (!prover.isUnsat()) {
-            System.out.println("Sat");
-//            System.out.println("Model: " + model);
-            System.out.println(prover.getModelAssignments());
+
+            ImmutableList<Model.ValueAssignment> assignments = prover.getModelAssignments();
+            List<String> toBeInstalled = assignments.stream()
+                    .filter(a -> a.getValue().toString().equals("1"))
+                    .filter(a -> !initials.containsKey(a.getName()))
+                    .filter(a -> !a.getName().equals(VIRTUAL_PACKAGE_UUID))
+                    .map(a -> "+" + a.getName())
+                    .collect(Collectors.toList());
+
+            List<String> toBeRemoved = assignments.stream()
+                    .filter(a -> a.getValue().toString().equals("0"))
+                    .filter(a -> initials.containsKey(a.getName()))
+                    .map(a -> "-" + a.getName())
+                    .collect(Collectors.toList());
+
+            result.addAll(toBeRemoved);
+            result.addAll(toBeInstalled);
 
         } else {
             System.out.println("Unsat");
 //            System.out.println(prover.getUnsatCore());
         }
 
-        return new ArrayList<>();
+        return result;
     }
 }
