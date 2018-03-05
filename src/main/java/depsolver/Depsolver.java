@@ -80,12 +80,12 @@ public class Depsolver {
         }
 
         // update the cost of initially installed packages
-        Set<Package> initials = problem.getInitial();
-        for (Package p : initials) {
-            IntegerFormula oldValue = variables.get(p.getUUID());
+        Map<String, Package> initials = problem.getInitial();
+        for (String s : initials.keySet()) {
+            IntegerFormula v = variables.get(s);
             IntegerFormula uninstallCost = imgr.makeNumber(UNINSTALL_COST);
-            IntegerFormula newValue = imgr.multiply(uninstallCost, oldValue);
-            sizedVariables.put(p.getUUID(), newValue);
+            IntegerFormula newValue = imgr.multiply(uninstallCost, v);
+            sizedVariables.put(s, newValue);
         }
 
         // assert dependencies and conflicts
@@ -105,9 +105,7 @@ public class Depsolver {
                     IntegerFormula total = imgr.subtract(sum, variables.get(s));
                     BooleanFormula ineq = imgr.greaterOrEquals(total, ZERO);
                     prover.addConstraint(ineq);
-
                 }
-
             }
 
             // conflicts
@@ -119,9 +117,7 @@ public class Depsolver {
 
                 // add the formula as a constraint to the proverEnvironment
                 prover.addConstraint(ineq);
-
             }
-
         }
 
         // install the virtual package

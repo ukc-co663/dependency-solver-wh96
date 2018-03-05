@@ -21,7 +21,7 @@ public class Parser {
     private static List<String> constraints;
 
     private static Map<String, Package> repoMap = new HashMap<>();
-    private static Set<Package> initialSet = new HashSet<>();
+    private static Map<String, Package> initialMap = new HashMap<>();
 
     /**
      * Main method of the class
@@ -66,15 +66,13 @@ public class Parser {
             }
             preprocess(virtual);
 
-            // convert initial from a List<String> to a Set<Package>
-            initialSet = initial.stream()
-                    .map(repoMap::get)
-                    .collect(Collectors.toSet());
+            // convert initial from a List<String> to a Map<String, Package>
+            initial.forEach(k -> initialMap.put(k, repoMap.get(k)));
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return new Problem(repoMap, initialSet);
+        return new Problem(repoMap, initialMap);
     }
 
     /**
@@ -167,13 +165,11 @@ public class Parser {
                 myPred = p -> true;
         }
 
-        List<String> result = repo.stream()
+        return repo.stream()
                 .filter(p -> p.getName().equals(name))
                 .filter(myPred)
                 .map(Package::getUUID)
                 .collect(Collectors.toList());
-
-        return result;
     }
 
 }

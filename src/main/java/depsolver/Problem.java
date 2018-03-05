@@ -1,7 +1,6 @@
 package depsolver;
 
 import java.util.Map;
-import java.util.Set;
 
 /**
  * @author wh96
@@ -9,9 +8,9 @@ import java.util.Set;
  */
 public class Problem {
     private final Map<String, Package> repo;
-    private final Set<Package> initial;
+    private final Map<String, Package> initial;
 
-    public Problem(Map<String, Package> repo, Set<Package> initial) {
+    public Problem(Map<String, Package> repo, Map<String, Package> initial) {
         this.repo = repo;
         this.initial = initial;
     }
@@ -20,7 +19,7 @@ public class Problem {
         return repo;
     }
 
-    public Set<Package> getInitial() {
+    public Map<String, Package> getInitial() {
         return initial;
     }
 }
