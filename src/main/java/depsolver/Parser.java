@@ -48,18 +48,18 @@ public class Parser {
 
             // add virtual package to repo
             Package virtual = new Package();
-            virtual.setName("_VIRTUAL_");
-            virtual.setVersion("1");
+            virtual.setName(Depsolver.VIRTUAL_PACKAGE_NAME);
+            virtual.setVersion(Depsolver.VIRTUAL_PACKAGE_VERSION);
             virtual.setSize(1);
             for (String constraint : constraints) {
                 if (constraint.startsWith("+")) {
-                    // add to dependencies of _VIRTUAL_
+                    // add to dependencies of _VIRT_
                     List<List<String>> current = virtual.getDepends();
                     List<String> newDependency = new ArrayList<>();
                     newDependency.add(constraint.substring(1));
                     current.add(newDependency);
                 } else {
-                    // add to conflicts of _VIRTUAL_
+                    // add to conflicts of _VIRT_
                     List<String> current = virtual.getConflicts();
                     current.add(constraint.substring(1));
                 }

@@ -18,6 +18,9 @@ public class Depsolver {
     private static long z3End;
 
     private static final int UNINSTALL_COST = -1000000;
+    static final String VIRTUAL_PACKAGE_NAME = "_VIRT_";
+    static final String VIRTUAL_PACKAGE_VERSION = "1";
+    static final String VIRTUAL_PACKAGE_UUID = VIRTUAL_PACKAGE_NAME + "=" + VIRTUAL_PACKAGE_VERSION;
 
     public static void main(String[] args) {
         start = System.currentTimeMillis();
@@ -122,7 +125,7 @@ public class Depsolver {
         }
 
         // install the virtual package
-        BooleanFormula installVirt = imgr.greaterOrEquals(variables.get("_VIRTUAL_=1"), ONE);
+        BooleanFormula installVirt = imgr.greaterOrEquals(variables.get(VIRTUAL_PACKAGE_UUID), ONE);
         prover.addConstraint(installVirt);
 
 
