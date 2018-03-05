@@ -1,10 +1,12 @@
 package depsolver;
 
+import com.alibaba.fastjson.JSON;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.java_smt.SolverContextFactory;
 import org.sosy_lab.java_smt.api.*;
 import org.sosy_lab.java_smt.api.NumeralFormula.IntegerFormula;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,17 +22,18 @@ public class Depsolver {
         try (SolverContext solverContext = SolverContextFactory.createSolverContext(Solvers.Z3)) {
 
             Problem problem = Parser.parse(args[0], args[1], args[2]); // repo, initial, constraints
-            Solution solution = Depsolver.solve(solverContext, problem);
+            List<String> solution = Depsolver.solve(solverContext, problem);
 
             // write out JSON of the solution
-            // System.out.println(JSON.toJSON(solution));
+            System.out.println(JSON.toJSON(solution));
 
         } catch (InvalidConfigurationException | InterruptedException | SolverException e) {
             e.printStackTrace();
         }
     }
 
-    private static Solution solve(SolverContext solverContext, Problem problem) throws InterruptedException, SolverException {
+    private static List<String> solve(SolverContext solverContext, Problem problem) throws InterruptedException,
+            SolverException {
 
         OptimizationProverEnvironment prover = solverContext.newOptimizationProverEnvironment();
 
@@ -120,6 +123,6 @@ public class Depsolver {
         prover.isUnsat();
         System.out.println(prover.getModel());
 
-        return new Solution();
+        return new ArrayList<>();
     }
 }
