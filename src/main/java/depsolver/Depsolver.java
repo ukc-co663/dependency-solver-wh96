@@ -80,21 +80,19 @@ public class Depsolver {
             for (List<String> l : repo.get(s).getDepends()) {
 
                 // Construct the dependency formula : c0 * d0 + c1 * d1 + ... + cn * dn - p >= 0
-                List<IntegerFormula> sumList = l.stream().map(sizedVariables::get).collect(Collectors.toList());
-
-                // catch no deps
-                IntegerFormula sum = ZERO;
-
-                if (!sumList.isEmpty()) {
-                    sum = imgr.sum(sumList);
-                }
-
-                IntegerFormula neg = imgr.negate(variables.get(s));
-                IntegerFormula total = imgr.add(sum, neg);
-                BooleanFormula ineq = imgr.greaterOrEquals(total, ZERO);
+                List<IntegerFormula> sumList = l.stream()
+                        .map(variables::get)
+                        .collect(Collectors.toList());
 
                 // Add the formula as a constraint to the proverEnvironment
-                prover.addConstraint(ineq);
+                if (!sumList.isEmpty()) {
+                    IntegerFormula sum = imgr.sum(sumList);
+                    IntegerFormula total = imgr.subtract(sum, variables.get(s));
+                    BooleanFormula ineq = imgr.greaterOrEquals(total, ZERO);
+                    prover.addConstraint(ineq);
+
+                }
+
             }
 
             // conflicts
