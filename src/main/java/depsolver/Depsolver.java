@@ -54,8 +54,8 @@ public class Depsolver {
         final IntegerFormula ZERO = imgr.makeNumber(0);
         final IntegerFormula ONE = imgr.makeNumber(1);
 
+        // Repository
         Map<String, Package> repo = problem.getRepo();
-
 
         // for each package in repo, create a variable
         Map<String, IntegerFormula> variables = new HashMap<>();
@@ -94,7 +94,7 @@ public class Depsolver {
             // dependencies
             for (List<String> l : repo.get(s).getDepends()) {
 
-                // Construct the dependency formula : c0 * d0 + c1 * d1 + ... + cn * dn - p >= 0
+                // construct the dependency formula : c0 * d0 + c1 * d1 + ... + cn * dn - p >= 0
                 List<IntegerFormula> sumList = l.stream()
                         .map(variables::get)
                         .collect(Collectors.toList());
@@ -113,11 +113,11 @@ public class Depsolver {
             // conflicts
             for (String c : repo.get(s).getConflicts()) {
 
-                // Construct the conflict formula : c + p <= 1
+                // construct the conflict formula : c + p <= 1
                 IntegerFormula sum = imgr.add(variables.get(c), variables.get(s));
                 BooleanFormula ineq = imgr.lessOrEquals(sum, ONE);
 
-                // Add the formula as a constraint to the proverEnvironment
+                // add the formula as a constraint to the proverEnvironment
                 prover.addConstraint(ineq);
 
             }
