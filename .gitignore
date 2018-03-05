@@ -67,22 +67,6 @@ company-statistics-cache.el
 # anaconda-mode
 anaconda-mode/
 
-### Gradle ###
-.gradle
-**/build/
-
-# Ignore Gradle GUI config
-gradle-app.setting
-
-# Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
-!gradle-wrapper.jar
-
-# Cache of project
-.gradletasknamecache
-
-# # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
-# gradle/wrapper/gradle-wrapper.properties
-
 ### Java ###
 # Compiled class file
 *.class
@@ -166,6 +150,23 @@ fabric.properties
 # See https://github.com/joeblau/gitignore.io/issues/186 and https://github.com/joeblau/gitignore.io/issues/360
 
 .idea/
+
+### Gradle ###
+.gradle
+**/build/
+
+# Ignore Gradle GUI config
+gradle-app.setting
+
+# Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
+!gradle-wrapper.jar
+
+# Cache of project
+.gradletasknamecache
+
+# # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
+# gradle/wrapper/gradle-wrapper.properties
+
 
 
 # End of https://www.gitignore.io/api/emacs,java,jetbrains+all,gradle

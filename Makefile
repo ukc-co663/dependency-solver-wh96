@@ -1,12 +1,9 @@
 all: build
 
-build: setup
+build: 
 	./gradlew build -q
 
-clean: setup
+clean: 
 	./gradlew clean -q
 
-setup:
-	./setup.sh
-
-.PHONY: all build clean setup
+.PHONY: all build clean
