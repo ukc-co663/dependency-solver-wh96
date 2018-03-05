@@ -15,6 +15,7 @@ public class Depsolver {
 
     private static long start;
     private static long z3Start;
+    private static long z3End;
 
     public static void main(String[] args) {
         start = System.currentTimeMillis();
@@ -22,6 +23,8 @@ public class Depsolver {
 
             Problem problem = Parser.parse(args[0], args[1], args[2]); // repo, initial, constraints
             List<String> solution = Depsolver.solve(solverContext, problem);
+            z3End = System.currentTimeMillis();
+            System.out.println("Z3 took " + (z3End - z3Start) + "ms");
 
             // write out JSON of the solution
             System.out.println(JSON.toJSON(solution));
