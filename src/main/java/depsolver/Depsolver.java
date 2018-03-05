@@ -17,6 +17,8 @@ public class Depsolver {
     private static long z3Start;
     private static long z3End;
 
+    private static final int UNINSTALL_COST = -1000000;
+
     public static void main(String[] args) {
         start = System.currentTimeMillis();
         try (SolverContext solverContext = SolverContextFactory.createSolverContext(Solvers.Z3)) {
@@ -78,7 +80,7 @@ public class Depsolver {
         Set<Package> initials = problem.getInitial();
         for (Package p : initials) {
             IntegerFormula oldValue = variables.get(p.getUUID());
-            IntegerFormula uninstallCost = imgr.makeNumber(-1000000);
+            IntegerFormula uninstallCost = imgr.makeNumber(UNINSTALL_COST);
             IntegerFormula newValue = imgr.multiply(uninstallCost, oldValue);
             sizedVariables.put(p.getUUID(), newValue);
         }
