@@ -31,9 +31,14 @@ public class Depsolver {
         try (SolverContext solverContext = SolverContextFactory.createSolverContext(Solvers.Z3)) {
 
             Problem problem = Parser.parse(args[0], args[1], args[2]); // repo, initial, constraints
+
+            System.out.println(problem.getRepo().size());
+            System.out.println(problem.getInitial().size());
+
             List<String> solution = Depsolver.solve(solverContext, problem);
+
             z3End = System.currentTimeMillis();
-//            System.out.println("Z3 took " + (z3End - z3Start) + "ms");
+            System.out.println("Z3 took " + (z3End - z3Start) + "ms");
 
             // write out JSON of the solution
             System.out.println(JSON.toJSON(solution));
@@ -45,8 +50,10 @@ public class Depsolver {
 
     private static List<String> solve(SolverContext solverContext, Problem problem) throws InterruptedException,
             SolverException {
+
         z3Start = System.currentTimeMillis();
-//        System.out.println("Submitted to Z3 after: " + (z3Start - start) + " ms");
+        System.out.println("Submitted to Z3 after: " + (z3Start - start) + " ms");
+
         OptimizationProverEnvironment prover = solverContext.newOptimizationProverEnvironment();
 //        ProverEnvironment prover = solverContext.newProverEnvironment(SolverContext.ProverOptions.GENERATE_UNSAT_CORE);
 
@@ -87,9 +94,15 @@ public class Depsolver {
         // update the cost of initially installed packages
         Map<String, Package> initials = problem.getInitial();
         for (String s : initials.keySet()) {
+            System.out.println(s);
             IntegerFormula v = variables.get(s);
+            System.out.println("Made it");
             IntegerFormula uninstallCost = imgr.makeNumber(UNINSTALL_COST);
+            System.out.println("Doubly made it");
+            System.out.println(uninstallCost);
+            System.out.println(v);
             IntegerFormula newValue = imgr.multiply(uninstallCost, v);
+            System.out.println("Here?");
             sizedVariables.put(s, newValue);
         }
 

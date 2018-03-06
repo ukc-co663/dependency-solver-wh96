@@ -30,7 +30,7 @@ class Package {
         return conflicts;
     }
 
-    public String getUUID() {
+    public String getUuid () {
         return name + "=" + version;
     }
 

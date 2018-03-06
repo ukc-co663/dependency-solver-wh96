@@ -10,25 +10,24 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
+
 /**
  * @author wh96
  * @since 2018-03-01
  */
 public class Parser {
 
-    private static List<Package> repo;
-    private static List<String> initial;
-    private static List<String> constraints;
-
     private static Map<String, Package> repoMap = new HashMap<>();
     private static Map<String, Package> initialMap = new HashMap<>();
 
     /**
-     * Main method of the class
-     *
      * @param repoStr
      * @param initialStr
      * @param constraintsStr
+     * @return
      */
     public static Problem parse(String repoStr, String initialStr, String constraintsStr) {
 
@@ -39,32 +38,31 @@ public class Parser {
             TypeReference<List<String>> strListType = new TypeReference<List<String>>() {
             };
 
-            repo = JSON.parseObject(readFile(repoStr), repoType);
-            initial = JSON.parseObject(readFile(initialStr), strListType);
-            constraints = JSON.parseObject(readFile(constraintsStr), strListType);
+            List<Package> repo = JSON.parseObject(readFile(repoStr), repoType);
+            List<String> initial = JSON.parseObject(readFile(initialStr), strListType);
+            List<String> constraints = JSON.parseObject(readFile(constraintsStr), strListType);
 
-            // pre-process dependencies
-            repo.forEach(Parser::preprocess);
+            // turn repo into a map from a name to a list of packages with that name
+            Map<String, List<Package>> repoRoughMap = repo.stream().collect(Collectors.groupingBy(Package::getName));
 
-            // add virtual package to repo
-            Package virtual = new Package();
-            virtual.setName(Depsolver.VIRTUAL_PACKAGE_NAME);
-            virtual.setVersion(Depsolver.VIRTUAL_PACKAGE_VERSION);
-            virtual.setSize(1);
-            for (String constraint : constraints) {
-                if (constraint.startsWith("+")) {
-                    // add to dependencies of _VIRT_
-                    List<List<String>> current = virtual.getDepends();
-                    List<String> newDependency = new ArrayList<>();
-                    newDependency.add(constraint.substring(1));
-                    current.add(newDependency);
-                } else {
-                    // add to conflicts of _VIRT_
-                    List<String> current = virtual.getConflicts();
-                    current.add(constraint.substring(1));
-                }
-            }
-            preprocess(virtual);
+            // create a virtual package; the goal state is just installing |VIRT|
+            Package virtual = createVirtual(constraints);
+
+            // create an initial queue for pruning the repo
+
+            // initial is a string, needs to be package
+            Deque<Package> queue = repo.stream()
+                    .filter(p -> ! initial.contains(p.getUuid()))
+                    .collect(Collectors.toCollection(LinkedList::new));
+
+            queue.add(virtual);
+
+            // prune the map to only those packages reachable from virtual
+            // repoMap = pruneRepoMap(repoRoughMap, queue);
+            repoMap = repo.stream().collect(toMap(Package::getUuid, p -> p));
+
+            // add the virtual package to the repo
+            repoMap.put(Depsolver.VIRTUAL_PACKAGE_UUID, virtual);
 
             // convert initial from a List<String> to a Map<String, Package>
             initial.forEach(k -> initialMap.put(k, repoMap.get(k)));
@@ -72,14 +70,132 @@ public class Parser {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
         return new Problem(repoMap, initialMap);
     }
 
+    private static Map<String, Package> pruneRepoMap(Map<String, List<Package>> repoRoughMap, Deque<Package> queue) {
+
+        Set<String> reachablePackageUuids = new HashSet<>();
+        Map<String, Package> reachablePackageMap = new HashMap<>();
+
+        for (Package p : queue) {
+            String uuid = p.getUuid();
+            reachablePackageMap.put(uuid, p);
+        }
+
+        // build and return a map from reachable package UUIDs to reachable packages
+        while (!queue.isEmpty()) {
+            // rewrite initial's dependencies and constraints
+            for (List<String> dep : queue.pop().getDepends()) {
+                for (String clause : dep) {
+                    Set<String> newReachablePackageUuids = unfold(clause, repoRoughMap).stream()
+                            .filter(s -> !reachablePackageUuids.contains(s))
+                            .collect(toSet());
+
+                    for (String uuid : newReachablePackageUuids) {
+                        String name = uuid.split("=")[0];
+                        String version = uuid.split("=")[1];
+
+                        Package pack = repoRoughMap.get(name).stream()
+                                .filter(p -> p.getVersion().equals(version))
+                                .collect(toList())
+                                .get(0);
+
+                        reachablePackageMap.put(uuid, pack);
+                        queue.add(pack);
+                    }
+
+                    reachablePackageUuids.addAll(newReachablePackageUuids);
+                }
+            }
+        }
+
+        return reachablePackageMap;
+    }
+
+    private static Set<String> unfold(String folded, Map<String, List<Package>> repoRoughMap) {
+
+        Set<String> result = new HashSet<>();
+
+        // determine the operator
+        String name = folded;
+        String op = folded.replaceAll("[.+a-zA-Z0-9-]", "");
+        String version = "";
+
+        if (!op.equals("")) {
+            String[] parts = folded.split(op);
+            name = parts[0];
+            version = parts[1];
+        }
+
+        // Pick the right predicate to be used when filtering the repo
+        Predicate<Package> predicate = getPredicate(op, version);
+
+        List<Package> candidatePackages = repoRoughMap.get(name);
+
+        if (candidatePackages != null) {
+            result = candidatePackages
+                    .stream()
+                    .filter(predicate)
+                    .map(Package::getUuid)
+                    .collect(toSet());
+        }
+
+        return result;
+    }
+
+    private static Predicate<Package> getPredicate(String op, String version) {
+        switch (op) {
+            case "=":
+                return p -> p.getVersion().equals(version);
+            case "<":
+                return p -> p.getVersion().compareTo(version) < 0;
+            case "<=":
+                return p -> p.getVersion().compareTo(version) <= 0;
+            case ">":
+                return p -> p.getVersion().compareTo(version) > 0;
+            case ">=":
+                return p -> p.getVersion().compareTo(version) >= 0;
+            default:
+                return p -> true;
+        }
+    }
+
     /**
-     * Read a file as a string
-     *
-     * @param filename The file
-     * @return The string
+     * @param constraints
+     * @return
+     */
+    private static Package createVirtual(List<String> constraints) {
+        Package virtual = new Package();
+
+        virtual.setName(Depsolver.VIRTUAL_PACKAGE_NAME);
+        virtual.setVersion(Depsolver.VIRTUAL_PACKAGE_VERSION);
+        virtual.setSize(1);
+
+        // dependencies
+        List<List<String>> virtualDepends = constraints.stream()
+                .filter(c -> c.startsWith("+"))
+                .map(c -> c.substring(1))
+                .map(Arrays::asList)
+                .collect(Collectors.toList());
+
+        virtual.setDepends(virtualDepends);
+
+        // conflicts
+        List<String> virtualConflicts = constraints.stream()
+                .filter(c -> c.startsWith("-"))
+                .map(c -> c.substring(1))
+                .collect(Collectors.toList());
+
+        virtual.setConflicts(virtualConflicts);
+
+        return virtual;
+    }
+
+    /**
+     * @param filename
+     * @return
      * @throws IOException
      */
     private static String readFile(String filename) throws IOException {
@@ -88,88 +204,4 @@ public class Parser {
         br.lines().forEach(sb::append);
         return sb.toString();
     }
-
-    /**
-     * Pre-process a package so its dependencies are listed atomically. For
-     * example, A depends on "B < 3" will be replaced by A depends on [B = 1; B = 2]
-     *
-     * @param p The package
-     */
-    private static void preprocess(Package p) {
-
-        // unfold inequalities in dependencies
-        List<List<String>> deps = p.getDepends();
-        List<List<String>> newDeps = new ArrayList<>();
-
-        if (deps != null) {
-            deps.forEach(clause -> {
-                List<String> newClause = new ArrayList<>();
-                clause.stream().map(Parser::unfold).forEach(newClause::addAll);
-                newDeps.add(newClause);
-            });
-            p.setDepends(newDeps);
-        }
-
-        // unfold inequalities in conflicts
-        List<String> confls = p.getConflicts();
-        List<String> newConfls = new ArrayList<>();
-
-        if (confls != null) {
-            confls.stream().map(Parser::unfold).forEach(newConfls::addAll);
-            p.setConflicts(newConfls);
-        }
-
-        // add to repoMap, so packages can easily be accessed by name & version
-        String key = p.getUUID();
-        repoMap.put(key, p);
-    }
-
-    /**
-     * Helper method for preprocess.
-     * <p>
-     * Convert a string expressing an inequality into a list of strings expressing
-     * identities, all of which satisfy the inquality.
-     *
-     * @param s The string expressing an inequality
-     * @return The list of strings expressing identities
-     */
-    private static List<String> unfold(String s) {
-
-        // determine the operator
-        String op = s.replaceAll("[.+a-zA-Z0-9-]", "");
-        String[] parts = s.split(op);
-
-        String name = parts[0];
-        String version = parts.length == 2 ? parts[1] : null;
-
-        // Pick the right predicate to be used when filtering the repo
-        Predicate<Package> myPred;
-
-        switch (op) {
-            case "=":
-                myPred = p -> p.getVersion().equals(version);
-                break;
-            case "<":
-                myPred = p -> p.getVersion().compareTo(version) < 0;
-                break;
-            case "<=":
-                myPred = p -> p.getVersion().compareTo(version) <= 0;
-                break;
-            case ">":
-                myPred = p -> p.getVersion().compareTo(version) > 0;
-                break;
-            case ">=":
-                myPred = p -> p.getVersion().compareTo(version) >= 0;
-                break;
-            default:
-                myPred = p -> true;
-        }
-
-        return repo.stream()
-                .filter(p -> p.getName().equals(name))
-                .filter(myPred)
-                .map(Package::getUUID)
-                .collect(Collectors.toList());
-    }
-
 }
