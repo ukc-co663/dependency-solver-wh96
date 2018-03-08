@@ -41,6 +41,10 @@ public class Parser {
             List<String> initial = JSON.parseObject(readFile(initialStr), strListType);
             List<String> constraints = JSON.parseObject(readFile(constraintsStr), strListType);
 
+            // create a virtual package; the goal state is just installing |VIRT|
+            Package virtual = createVirtual(constraints);
+            repo.add(virtual);
+
             // turn repo into a map from a name to a list of packages with that name
             Map<String, List<Package>> repoRoughMap = repo.stream()
                     .collect(Collectors.groupingBy(Package::getName));
@@ -82,14 +86,9 @@ public class Parser {
                 p.setConflicts(newConfls);
             }
 
-            // create a virtual package; the goal state is just installing |VIRT|
-            Package virtual = createVirtual(constraints);
 
             // convert repo from a List<String> to a Map<String, Package>
             repoMap = repo.stream().collect(toMap(Package::getUuid, p -> p));
-
-            // add the virtual package to the repo
-            repoMap.put(Depsolver.VIRTUAL_PACKAGE_UUID, virtual);
 
             // convert initial from a List<String> to a Map<String, Package>
             initial.forEach(k -> initialMap.put(k, repoMap.get(k)));
