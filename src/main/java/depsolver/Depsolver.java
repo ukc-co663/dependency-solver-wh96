@@ -180,7 +180,32 @@ public class Depsolver {
             System.out.println("Unsat");
         }
 
-        result = TopoSorter.sort(result, repo);
+        // order the result
+        ProverEnvironment orderer = solverContext.newProverEnvironment();
+
+        // generate all pairs where a < b
+        for (String s : result) {
+            for (List<String> l : repo.get(s).getDepends()) {
+                for (String t : l) {
+                    BooleanFormula order = imgr.lessThan(variables.get(t), variables.get(s));
+                    orderer.addConstraint(order);
+                }
+            }
+        }
+
+        if (!orderer.isUnsat()) {
+            ImmutableList<Model.ValueAssignment> assignments = prover.getModelAssignments();
+            System.out.println(assignments);
+        }
+
+
+        // conflicts
+        // for (String c : repo.get(s).getConflicts()) {
+        //     // construct the conflict formula : c + p <= 1
+
+        //     // add the formula as a constraint to the proverEnvironment
+        //     // prover.addConstraint(ineq);
+        // }
 
         return result;
 
