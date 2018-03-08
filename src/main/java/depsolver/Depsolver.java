@@ -1,15 +1,17 @@
 package depsolver;
 
+import com.alibaba.fastjson.JSON;
 import com.google.common.collect.ImmutableList;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.java_smt.SolverContextFactory;
 import org.sosy_lab.java_smt.api.*;
 import org.sosy_lab.java_smt.api.NumeralFormula.IntegerFormula;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.sosy_lab.java_smt.SolverContextFactory.Solvers;
