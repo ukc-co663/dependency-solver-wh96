@@ -60,7 +60,7 @@ public class Parser {
                 for (List<String> clause : p.getDepends()) {
                     List<String> newClause = new ArrayList<>();
                     for (String dependency : clause) {
-                        if (rewriteCache.get(dependency ) != null) {
+                        if (rewriteCache.get(dependency) != null) {
                             newClause.addAll(rewriteCache.get(dependency));
                         } else {
                             Set<String> replacements = unfold(dependency, repoRoughMap);
