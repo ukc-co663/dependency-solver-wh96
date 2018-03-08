@@ -1,6 +1,5 @@
 package depsolver;
 
-import com.alibaba.fastjson.JSON;
 import com.google.common.collect.ImmutableList;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.java_smt.SolverContextFactory;
@@ -32,16 +31,16 @@ public class Depsolver {
 
             Problem problem = Parser.parse(args[0], args[1], args[2]); // repo, initial, constraints
 
-            System.out.println(problem.getRepo().size());
-            System.out.println(problem.getInitial().size());
+//            System.out.println(problem.getRepo().size());
+//            System.out.println(problem.getInitial().size());
 
             List<String> solution = Depsolver.solve(solverContext, problem);
 
             z3End = System.currentTimeMillis();
-            System.out.println("Z3 took " + (z3End - z3Start) + "ms");
+//            System.out.println("Z3 took " + (z3End - z3Start) + "ms");
 
             // write out JSON of the solution
-            System.out.println(JSON.toJSON(solution));
+//            System.out.println(JSON.toJSON(solution));
 
         } catch (InvalidConfigurationException | InterruptedException | SolverException e) {
             e.printStackTrace();
@@ -94,15 +93,9 @@ public class Depsolver {
         // update the cost of initially installed packages
         Map<String, Package> initials = problem.getInitial();
         for (String s : initials.keySet()) {
-            System.out.println(s);
             IntegerFormula v = variables.get(s);
-            System.out.println("Made it");
             IntegerFormula uninstallCost = imgr.makeNumber(UNINSTALL_COST);
-            System.out.println("Doubly made it");
-            System.out.println(uninstallCost);
-            System.out.println(v);
             IntegerFormula newValue = imgr.multiply(uninstallCost, v);
-            System.out.println("Here?");
             sizedVariables.put(s, newValue);
         }
 
@@ -119,8 +112,14 @@ public class Depsolver {
 
                 // Add the formula as a constraint to the proverEnvironment
                 if (!sumList.isEmpty()) {
+//                    System.out.println("sumList size: " + sumList.size());
+//                    System.out.println("sumList: " + sumList);
                     IntegerFormula sum = imgr.sum(sumList);
+
+//                    System.out.println("sum: " + sum);
                     IntegerFormula total = imgr.subtract(sum, variables.get(s));
+
+//                    System.out.println("s: " + s);
                     BooleanFormula ineq = imgr.greaterOrEquals(total, ZERO);
                     prover.addConstraint(ineq);
                 }
