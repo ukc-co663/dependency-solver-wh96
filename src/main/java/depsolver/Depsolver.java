@@ -159,13 +159,48 @@ public class Depsolver {
         List<String> result = new ArrayList<>();
         if (!prover.isUnsat()) {
 
+            // Build a list of packages to be installed
             ImmutableList<Model.ValueAssignment> assignments = prover.getModelAssignments();
             List<String> toBeInstalled = assignments.stream()
                     .filter(a -> a.getValue().toString().equals("1"))
                     .filter(a -> !initials.containsKey(a.getName()))
                     .filter(a -> !a.getName().equals(VIRTUAL_PACKAGE_UUID))
-                    .map(a -> "+" + a.getName())
+                    .map(Model.ValueAssignment::getName)
                     .collect(Collectors.toList());
+
+            // Use Z3 to enforce ordering on installation (will fail in bootstrapping cases)
+            OptimizationProverEnvironment orderer = solverContext.newOptimizationProverEnvironment();
+
+            for (String s : toBeInstalled) {
+                List<List<String>> deps = repo.get(s).getDepends();
+                for (List<String> l : deps) {
+                    for (String t : l) {
+                        if (!toBeInstalled.contains(t)) {
+                            continue;
+                        }
+                        BooleanFormula order = imgr.lessThan(variables.get(t), variables.get(s));
+                        orderer.addConstraint(order);
+                    }
+                }
+
+                // force every string to have an interpretation, otherwise those with no
+                // dependencies can trigger NullPointerException
+                BooleanFormula existence = imgr.greaterThan(variables.get(s), ZERO);
+                orderer.addConstraint(existence);
+            }
+
+            if(!orderer.isUnsat()) {
+                Model model = orderer.getModel();
+                toBeInstalled = toBeInstalled.stream()
+                        .sorted(Comparator.comparingInt(a -> Objects.requireNonNull(model.evaluate(variables.get(a))).intValue()))
+                        .map(a -> "+" + a)
+                        .collect(Collectors.toList());
+            } else {
+                toBeInstalled = toBeInstalled.stream()
+                        .map(a -> "+" + a)
+                        .collect(Collectors.toList());
+            }
+
 
             List<String> toBeRemoved = assignments.stream()
                     .filter(a -> a.getValue().toString().equals("0"))
@@ -180,34 +215,6 @@ public class Depsolver {
             System.out.println("Unsat");
         }
 
-        // order the result
-        ProverEnvironment orderer = solverContext.newProverEnvironment();
-
-        // generate all pairs where a < b
-        for (String s : result) {
-            for (List<String> l : repo.get(s).getDepends()) {
-                for (String t : l) {
-                    BooleanFormula order = imgr.lessThan(variables.get(t), variables.get(s));
-                    orderer.addConstraint(order);
-                }
-            }
-        }
-
-        if (!orderer.isUnsat()) {
-            ImmutableList<Model.ValueAssignment> assignments = prover.getModelAssignments();
-            System.out.println(assignments);
-        }
-
-
-        // conflicts
-        // for (String c : repo.get(s).getConflicts()) {
-        //     // construct the conflict formula : c + p <= 1
-
-        //     // add the formula as a constraint to the proverEnvironment
-        //     // prover.addConstraint(ineq);
-        // }
-
         return result;
-
     }
 }
