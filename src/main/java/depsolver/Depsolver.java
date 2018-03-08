@@ -180,6 +180,9 @@ public class Depsolver {
             System.out.println("Unsat");
         }
 
+        result = TopoSorter.sort(result, repo);
+
         return result;
+
     }
 }
