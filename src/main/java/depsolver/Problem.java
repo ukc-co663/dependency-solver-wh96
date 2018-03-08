@@ -2,10 +2,6 @@ package depsolver;
 
 import java.util.Map;
 
-/**
- * @author wh96
- * @since 2018-03-04
- */
 public class Problem {
     private final Map<String, Package> repo;
     private final Map<String, Package> initial;

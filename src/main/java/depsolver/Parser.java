@@ -12,17 +12,21 @@ import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toMap;
 
-/**
- * @author wh96
- * @since 2018-03-01
- */
 public class Parser {
 
     private static Map<String, Package> repoMap = new HashMap<>();
     private static Map<String, Package> initialMap = new HashMap<>();
 
     /**
+     * Main method of the class.
+     * <p>
+     * Parse the input files. Rewrite dependencies and conflicts using only "=" relations. Return
+     * the results of parsing with the Problem wrapper class.
      *
+     * @param repoStr        The path to repository.json
+     * @param initialStr     The path to initial.json
+     * @param constraintsStr The path to constrains.json
+     * @return The results of parsing, wrapped using the Problem class.
      */
     public static Problem parse(String repoStr, String initialStr, String constraintsStr) {
 
@@ -97,6 +101,19 @@ public class Parser {
         return new Problem(repoMap, initialMap);
     }
 
+    /**
+     * Take a String representing a dependency or a conflict, and return a Set of Strings that
+     * express the same dependencies or conflicts, using only "=" as the relation between Package
+     * name and Package version. A rough Map version of the repository is used to improve
+     * performance.
+     *
+     * @param folded       The original String, which may use "<", ">=" etc.
+     * @param repoRoughMap A Map representation of the repository. Keys are Package names; Values
+     *                     are Lists of all Packages with that name (may be multiple versions, e.g.
+     *                     A => [A=2.0, A=2.1] etc). The Map is "rough" because the keys are not
+     *                     as precise as the UUIDs used for keys later.
+     * @return A Set of Strings representing a dependency or conflict of a Package.
+     */
     private static Set<String> unfold(String folded, Map<String, List<Package>> repoRoughMap) {
 
         Set<String> result = new HashSet<>();
@@ -128,6 +145,15 @@ public class Parser {
         return result;
     }
 
+    /**
+     * Generate a Predicate from a String, to be used when filtering the repo to rewrite
+     * dependencies/conflicts from inequalities to lists of equalities that have the same truth
+     * conditions.
+     *
+     * @param op      A String representing the type of inequality being rewritten.
+     * @param version The version of the package used to complete the Predicate.
+     * @return A Predicate which selects Packages which satisfy the supplied inequality.
+     */
     private static Predicate<Package> getPredicate(String op, String version) {
         switch (op) {
             case "=":
@@ -146,7 +172,12 @@ public class Parser {
     }
 
     /**
+     * Creates a "Virtual" package that wraps the contents of constraints.json. Positive
+     * constraints e.g. "+A=2" are added as dependencies; negative constraints e.g. "-B=3.1" are
+     * added as conflicts.
      *
+     * @param constraints The String read from constraints.json
+     * @return A Virt
      */
     private static Package createVirtual(List<String> constraints) {
         Package virtual = new Package();
@@ -176,7 +207,11 @@ public class Parser {
     }
 
     /**
+     * Helper function to read a File to a String
      *
+     * @param filename The path to the File to be read
+     * @return A String holding the contents of the file
+     * @throws IOException
      */
     private static String readFile(String filename) throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(filename));

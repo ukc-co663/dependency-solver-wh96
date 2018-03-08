@@ -21,6 +21,13 @@ public class Depsolver {
     static final String VIRTUAL_PACKAGE_VERSION = "1";
     static final String VIRTUAL_PACKAGE_UUID = VIRTUAL_PACKAGE_NAME + "=" + VIRTUAL_PACKAGE_VERSION;
 
+    /**
+     * Entry point. Delegates major operations to other methods, then writes out the results to a
+     * file.
+     *
+     * @param args Should be called with 3 arguments (in order): repository.json, initial.json,
+     *             constraints.json
+     */
     public static void main(String[] args) {
         try (SolverContext solverContext = SolverContextFactory.createSolverContext(Solvers.Z3)) {
 
@@ -33,7 +40,20 @@ public class Depsolver {
         }
     }
 
-    private static List<String> solve(SolverContext solverContext, Problem problem) throws InterruptedException,
+    /**
+     * Take a Problem produced by the Parser and generate a representation to be submitted to the
+     * Z3 SMT solver. The classes used are imported from SoSy Lab, which provides a general
+     * purpose interface to SMT solvers.
+     *
+     * @param solverContext A wrapper for various configuration options and settings for the SMT
+     *                      solver.
+     * @param problem       The Problem to be solved.
+     * @return A List of Strings, each of which is a command e.g. "+A=2.0"
+     * @throws InterruptedException
+     * @throws SolverException
+     */
+    private static List<String> solve(SolverContext solverContext, Problem problem) throws
+            InterruptedException,
             SolverException {
 
         OptimizationProverEnvironment prover = solverContext.newOptimizationProverEnvironment();
