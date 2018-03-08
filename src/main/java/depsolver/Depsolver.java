@@ -16,31 +16,17 @@ import static org.sosy_lab.java_smt.SolverContextFactory.Solvers;
 
 public class Depsolver {
 
-    private static long start;
-    private static long z3Start;
-    private static long z3End;
-
     private static final int UNINSTALL_COST = -1000000;
-    static final String VIRTUAL_PACKAGE_NAME = "_VIRT_";
+    static final String VIRTUAL_PACKAGE_NAME = "|VIRT|";
     static final String VIRTUAL_PACKAGE_VERSION = "1";
     static final String VIRTUAL_PACKAGE_UUID = VIRTUAL_PACKAGE_NAME + "=" + VIRTUAL_PACKAGE_VERSION;
 
     public static void main(String[] args) {
-        start = System.currentTimeMillis();
         try (SolverContext solverContext = SolverContextFactory.createSolverContext(Solvers.Z3)) {
 
             Problem problem = Parser.parse(args[0], args[1], args[2]); // repo, initial, constraints
-
-//            System.out.println(problem.getRepo().size());
-//            System.out.println(problem.getInitial().size());
-
             List<String> solution = Depsolver.solve(solverContext, problem);
-
-            z3End = System.currentTimeMillis();
-//            System.out.println("Z3 took " + (z3End - z3Start) + "ms");
-
-            // write out JSON of the solution
-//            System.out.println(JSON.toJSON(solution));
+            // System.out.println(JSON.toJSON(solution));
 
         } catch (InvalidConfigurationException | InterruptedException | SolverException e) {
             e.printStackTrace();
@@ -50,11 +36,7 @@ public class Depsolver {
     private static List<String> solve(SolverContext solverContext, Problem problem) throws InterruptedException,
             SolverException {
 
-        z3Start = System.currentTimeMillis();
-        System.out.println("Submitted to Z3 after: " + (z3Start - start) + " ms");
-
         OptimizationProverEnvironment prover = solverContext.newOptimizationProverEnvironment();
-//        ProverEnvironment prover = solverContext.newProverEnvironment(SolverContext.ProverOptions.GENERATE_UNSAT_CORE);
 
         // Pseudo-Boolean
         FormulaManager fmgr = solverContext.getFormulaManager();
@@ -112,14 +94,10 @@ public class Depsolver {
 
                 // Add the formula as a constraint to the proverEnvironment
                 if (!sumList.isEmpty()) {
-//                    System.out.println("sumList size: " + sumList.size());
-//                    System.out.println("sumList: " + sumList);
                     IntegerFormula sum = imgr.sum(sumList);
 
-//                    System.out.println("sum: " + sum);
                     IntegerFormula total = imgr.subtract(sum, variables.get(s));
 
-//                    System.out.println("s: " + s);
                     BooleanFormula ineq = imgr.greaterOrEquals(total, ZERO);
                     prover.addConstraint(ineq);
                 }
@@ -141,11 +119,10 @@ public class Depsolver {
         BooleanFormula installVirt = imgr.greaterOrEquals(variables.get(VIRTUAL_PACKAGE_UUID), ONE);
         prover.addConstraint(installVirt);
 
-
         // optimize
         List<IntegerFormula> sumList = new ArrayList<>(sizedVariables.values());
         IntegerFormula sum = imgr.sum(sumList);
-        int handle = prover.minimize(sum);
+        int _handle = prover.minimize(sum);
 
         // process results
         List<String> result = new ArrayList<>();
@@ -170,7 +147,6 @@ public class Depsolver {
 
         } else {
             System.out.println("Unsat");
-//            System.out.println(prover.getUnsatCore());
         }
 
         return result;

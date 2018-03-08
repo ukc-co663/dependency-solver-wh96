@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toMap;
@@ -40,33 +41,42 @@ public class Parser {
             Map<String, List<Package>> repoRoughMap = repo.stream()
                     .collect(Collectors.groupingBy(Package::getName));
 
-            // rewrite dependencies, replacing inequalities with identities
-            // initialise Map: ineq -> (uuid, position); allows us to compute only once
-            Map<String, Set<DepPosition>> dependencyMap = new HashMap<>();
+            // rewrite dependencies and conflicts, replacing inequalities with identities
 
-            for (Package p : repo) {
-                int numberOfDependencyEntries = p.getDepends().size();
-                for (int i = 0; i < numberOfDependencyEntries; i++) {
-                    for (String dependency : p.getDepends().get(i)) {
-                        dependencyMap.computeIfAbsent(dependency, k -> new HashSet<>());
-                        dependencyMap.get(dependency).add(new DepPosition(p.getUuid(), i));
-                    }
-                }
-            }
+            // initialise a rewrite cache to speed things up
+            Map<String, Set<String>> rewriteCache = new HashMap<>();
 
             // perform the rewrite
-            for (String clause : dependencyMap.keySet()) {
-                // compute the replacement strings
-                // A < 3 => {A = 1, A = 2} etc.
+            for (Package p : repo) {
+                List<List<String>> newDeps = new ArrayList<>();
+                for (List<String> clause : p.getDepends()) {
+                    List<String> newClause = new ArrayList<>();
+                    for (String dependency : clause) {
+                        if (rewriteCache.get(dependency ) != null) {
+                            newClause.addAll(rewriteCache.get(dependency));
+                        } else {
+                            Set<String> replacements = unfold(dependency, repoRoughMap);
+                            rewriteCache.put(dependency, replacements);
+                            newClause.addAll(replacements);
+                        }
+                    }
+                    newDeps.add(newClause);
+                }
+                p.setDepends(newDeps);
 
-                // Look up the package uuid and the position of the list which contains this
-                // dependency.
+                List<String> newConfls = new ArrayList<>();
+                for (String conflict : p.getConflicts()) {
+                    if (rewriteCache.get(conflict) != null) {
+                        newConfls.addAll(rewriteCache.get(conflict));
+                    } else {
+                        Set<String> replacements = unfold(conflict, repoRoughMap);
+                        rewriteCache.put(conflict, replacements);
+                        newConfls.addAll(replacements);
+                    }
 
-                // Remove "clause" from the list
-
-                // Add the replacement to the list
+                }
+                p.setConflicts(newConfls);
             }
-
 
             // create a virtual package; the goal state is just installing |VIRT|
             Package virtual = createVirtual(constraints);
@@ -85,6 +95,54 @@ public class Parser {
         }
 
         return new Problem(repoMap, initialMap);
+    }
+
+    private static Set<String> unfold(String folded, Map<String, List<Package>> repoRoughMap) {
+
+        Set<String> result = new HashSet<>();
+
+        // determine the operator
+        String name = folded;
+        String op = folded.replaceAll("[.+a-zA-Z0-9-]", "");
+        String version = "";
+
+        if (!op.equals("")) {
+            String[] parts = folded.split(op);
+            name = parts[0];
+            version = parts[1];
+        }
+
+        // Pick the right predicate to be used when filtering the repo
+        Predicate<Package> predicate = getPredicate(op, version);
+
+        List<Package> candidatePackages = repoRoughMap.get(name);
+
+        if (candidatePackages != null) {
+            result = candidatePackages
+                    .stream()
+                    .filter(predicate)
+                    .map(Package::getUuid)
+                    .collect(Collectors.toSet());
+        }
+
+        return result;
+    }
+
+    private static Predicate<Package> getPredicate(String op, String version) {
+        switch (op) {
+            case "=":
+                return p -> p.getVersion().equals(version);
+            case "<":
+                return p -> p.getVersion().compareTo(version) < 0;
+            case "<=":
+                return p -> p.getVersion().compareTo(version) <= 0;
+            case ">":
+                return p -> p.getVersion().compareTo(version) > 0;
+            case ">=":
+                return p -> p.getVersion().compareTo(version) >= 0;
+            default:
+                return p -> true;
+        }
     }
 
     /**
