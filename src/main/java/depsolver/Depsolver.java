@@ -35,7 +35,16 @@ public class Depsolver {
 
             Problem problem = Parser.parse(args[0], args[1], args[2]); // repo, initial, constraints
             List<String> solution = Depsolver.solve(solverContext, problem);
-            // System.out.println(JSON.toJSON(solution));
+            String outputName = args[0].replace("repository", "commands");
+            File output = new File(outputName);
+            try {
+                BufferedWriter wr = new BufferedWriter(new FileWriter(output));
+                wr.write(JSON.toJSONString(solution));
+                wr.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            System.out.println(JSON.toJSON(solution));
 
         } catch (InvalidConfigurationException | InterruptedException | SolverException e) {
             e.printStackTrace();
