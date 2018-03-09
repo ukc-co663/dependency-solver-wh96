@@ -1,2 +1,2 @@
 #!/bin/bash
-./gradlew run -q -PcmdArgs="[\"$1\", \"$2\", \"$3\"]"
+LD_LIBRARY_PATH=build/resources/main ./gradlew run -q -PcmdArgs="[\"$1\", \"$2\", \"$3\"]"

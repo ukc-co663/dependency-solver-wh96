@@ -41,21 +41,7 @@ jar {
 
 // Allow java to find Z3 binaries and parse command-line args
 tasks.withType(JavaExec) {
-//    systemProperty "java.library.path", "build/libs"
-    systemProperty "java.library.path", "src/main/resources"
-
     if (project.hasProperty("cmdArgs")) {
         args Eval.me(cmdArgs)
     }
 }
-
-// Copy Z3 binaries to build/libs
-//task copyBinaries (type: Copy) {
-//    into "build/libs"
-//    from configurations.runtimeClasspath
-//    exclude { f -> !f.file.name.contains("libz3") && "*.jar" }
-//    rename '(libz3java).*', '$1.so'
-//    rename '(libz3)-.*', '$1.so'
-//}
-
-// build.dependsOn(copyBinaries)
